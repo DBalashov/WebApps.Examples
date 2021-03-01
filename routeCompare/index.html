@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Оптимальный маршрут</title>
+</head>
+</head>
+<body>
+<pre id="params" style="white-space: pre;"></pre>
+<link rel="stylesheet" href="https://kendo.cdn.telerik.com/2021.1.119/styles/kendo.default-v2.min.css"
+/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+      integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+      crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+        integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
+        crossorigin=""></script>
+<script src="https://code.jquery.com/jquery-3.4.1.min.js" type="text/javascript"></script>
+<script src="https://kendo.cdn.telerik.com/2021.1.119/js/kendo.all.min.js"></script>
+<script src="external-settings.js"></script>
+<script src="js/web.js"></script>
+<script src="js/graphhopper.js"></script>
+<script src="js/autoGraphApi.js"></script>
+<script src="js/htmlassistant.js"></script>
+<script src="js/mapdrawer.js"></script>
+<script src="js/apiassistant.js"></script>
+<div id="selectRouteService"></div>
+<div id="grid"></div>
+<div id="map" style="width: 100%; height: 600px"></div>
+<script>
+    //в external-settings хранятся настройки текущей сессии, в том числе адрес API и токен текущей сессии
+    var parm = window['external-settings'];
+    var currentTrack = Object();
+
+    updateTable('grid', [{
+        CalculatedDistance: '',
+        TotalDistance: ''
+    }
+    ]);
+
+    //apiList - список сервисов для прокладки маршрута, реализации сервисов добавляются в методе initApiLists
+    var apiList = initApiLists();
+
+    //добавление карты leaflet
+    mapId = 'map';
+    var mapObject = initMap(mapId);
+
+    //добавление списка выбора сервисов, который добавили в initApiLists
+    $("#selectRouteService").kendoDropDownList({
+        dataSource: apiList.apiNamesList
+    });
+
+    //при изменении сервиса вызвать запрос и обновление рассчетного маршрута на карте
+    var dropdownlist = $("#selectRouteService").data("kendoDropDownList");
+    dropdownlist.bind("change", updateCalculatedRoute);
+
+    //вызов метода запроса маршрута с помощью сервиса, выбранного в dropdownlist
+    function updateRouteFromApiHandler(startPoint, endPoint) {
+        apiList.apiHandlersList[dropdownlist.selectedIndex].getRoute(startPoint, endPoint).then(function (result) {
+            feelCalculatedRouteResult(result);
+        });
+    }
+
+    //заполнение таблицы с фактическим и рассчетным пробегом, отрисовка рассчетного пробега
+    function feelCalculatedRouteResult(route) {
+        updateTable('grid', [
+                {
+                    CalculatedDistance: route.totalDistance + ' км',
+                    TotalDistance: currentTrack.totalDistance + ' км'
+                }
+            ]
+        );
+        drawTrack(route.points, 'green', 'Рассчетный трек', mapObject.calculatedRouteLayer);
+    }
+
+    //получение фактических данных по текущему рейсу
+    function updateActualRoute() {
+        return new Promise((resolve, reject) => {
+                var settings = {
+                    session: parm.Token,
+                    schemaID: parm.Organization.UID,
+                    IDs: currentTrack.carId,
+                    sd: kendo.toString(currentTrack.sd, 'yyyyMMdd-HHmmss'),
+                    ed: kendo.toString(currentTrack.ed, 'yyyyMMdd-HHmmss'),
+                    tripSplitterIndex: 0
+                }
+
+                //получаем рейс, чтобы взять оттуда дистанцию, начальную и конечную точку
+                get(parm.Urls.Service + '/GetTrips',
+                    settings,
+                    function (trips) {
+                        if (Object.entries(trips[currentTrack.carId].Trips).length > 0) {
+                            currentTrack.totalDistance = round(Object.entries(trips[currentTrack.carId].Trips)[0][1].Total.TotalDistance);
+                            currentTrack.pointStart = Object.entries(trips[currentTrack.carId].Trips)[0][1].PointStart;
+                            currentTrack.pointEnd = Object.entries(trips[currentTrack.carId].Trips)[0][1].PointEnd;
+                            setDeviceMarker(currentTrack.pointEnd, currentTrack.carName);
+                            //получаем подробный трек для отрисовки
+                            get(parm.Urls.Service + '/GetTrack',
+                                settings,
+                                function (track) {
+                                    let points = getPointsFromTrack(currentTrack.carId, track);
+                                    drawTrack(points, 'red', 'Фактический трек');
+                                    resolve();
+                                });
+                        }
+                    });
+            }
+        );
+    }
+
+    //очистка слоя с рассчетным маршрутом, вызов метода для его обновления
+    function updateCalculatedRoute() {
+        mapObject.calculatedRouteLayer.clearLayers();
+        if (!!currentTrack)
+            updateRouteFromApiHandler(currentTrack.pointStart, currentTrack.pointEnd, mapObject.calculatedRouteLayer);
+    }
+
+    window.parent.AppDispatcher.add('routeComparerListener', {
+        onTripSelected: function (car, tripIndex, sd, ed) {
+            parm = window['external-settings'];
+            clearMapLayers();
+            currentTrack.sd = sd;
+            currentTrack.ed = ed;
+            currentTrack.carId = car.ID;
+            currentTrack.carName = car.Name;
+            updateActualRoute()
+                .then(updateCalculatedRoute);
+        },
+
+        onSelectCar: function (car) {
+            currentTrack = Object();
+            clearMapLayers();
+        },
+    });
+
+</script>
+</body>
+</html>

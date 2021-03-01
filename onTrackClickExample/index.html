@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>onSelectCar example</title>
+</head>
+<script src="external-settings.js"></script>
+<script src="https://code.jquery.com/jquery-3.4.1.min.js" type="text/javascript"></script>
+<script src="https://kendo.cdn.telerik.com/2021.1.119/js/kendo.all.min.js"></script>
+<link rel="stylesheet" href="https://kendo.cdn.telerik.com/2021.1.119/styles/kendo.default-v2.min.css"
+/>
+</head>
+<body>
+<pre id="params" style="white-space: pre;"></pre>
+<div id="grid1"></div>
+<script>
+    //в external-settings хранятся настройки текущей сессии
+    var parm = window['external-settings'];
+
+    //API URL
+    var hostUrl = "api.openweathermap.org/data/2.5/onecall/timemachine?";
+
+    var columns1 = [
+        {field: "temp", title: "Температура"},
+        {field: "feels_like", title: "По ощущению"},
+        {field: "dew_point", title: "Точка росы"},
+        {field: "humidity", title: "Влажность"},
+        {field: "clouds", title: "Облачность"},
+        {field: "state ", title: "Состояние"},
+        {field: "intensity ", title: "Интенсивность"},
+        {field: "pressure", title: "Давление"},
+        {field: "visibility", title: "Видимость"},
+        {field: "wind_deg", title: "Направление ветра"},
+        {field: "wind_speed", title: "Скорость ветра"}
+    ];
+
+    function updateTable(table, inputColumns, dataSource) {
+        if (dataSource.length > 0)
+            $('#' + table).kendoGrid({
+                columns: inputColumns,
+                dataSource: {
+                    data: dataSource
+                }
+            });
+    }
+
+    //подготовка данных для kendo
+    function createDataSource(input) {
+        var dataSource = new Object();
+        dataSource.temp = input.temp + " °C";
+        dataSource.feels_like = input.feels_like + " °C";
+        dataSource.dew_point = input.dew_point + " °C";
+        dataSource.humidity = input.humidity + "%";
+        dataSource.pressure = input.pressure + " Па";
+        if (!!dataSource.visibility)
+            dataSource.visibility = input.visibility + "м";
+        dataSource.wind_deg = input.wind_deg + "°";
+        dataSource.wind_speed = input.wind_speed + "м/с";
+        dataSource.clouds = input.clouds + "%";
+        //если в массиве погоды есть объекты, из первого берем состояние (снег, облачность, дождь и т.д.) и из свойства с таким же именем берем интенсивность
+        if (input.weather.length > 0) {
+            dataSource.state = input.weather[0].description;
+            //проверяем наличие свойства, равного состоянию погоды, если есть - берем из него интенсивность
+            if (input.weather[0].main != "Clouds" && !!input[input.weather[0].main.toLowerCase()])
+                dataSource.intensity = input[input.weather[0].main.toLowerCase()]['1h'] * 100 + "%";
+        }
+        for (var key in dataSource) {
+            if (!!!dataSource[key])
+                dataSource[key] = "";
+        }
+        return [dataSource];
+    }
+
+    window.parent.AppDispatcher.add('TrackClickListener', {
+        onTrackClick: function (car, point, angle, pntIndex, timePos, dist, info) {
+            console.info('onTrackClick', {
+                car: car,
+                point: point,
+                angle: angle,
+                pntIndex: pntIndex,
+                timePos: timePos,
+                dist: dist,
+                info: info
+            });
+            //инициализируем пустые таблицы
+            updateTable("grid1", columns1, []);
+            var utcUnixTime = info.dt.getTime() / 1000;
+            //подготовка настроек для get-запроса сервису, в point находятся координаты точки, в info.dt время
+            //для запросов к погодному сервису нужно зарегистрироваться в сервисе https://openweathermap.org/price с планом Free и получить токен для доступа,
+            // токен добавляется в "Переменные для приложения" в настройках App с названием key, скриншот в файле token.png
+            const settings = {
+                "async": true,
+                "crossDomain": true,
+                "url": 'https://' + hostUrl + 'lat=' + point.lat + '&lon=' + point.lng + '&appid=' + parm.Settings['key'] + '&dt=' + utcUnixTime + '&lang=ru&units=metric',
+                "method": "GET"
+            };
+
+            $.ajax(settings).done(function (response) {
+                console.log(response);
+                //в current находится погода из истории на запрошенный момент времени
+                var dataSource = response.current;
+                updateTable("grid1", columns1, createDataSource(dataSource));
+            });
+        }
+    });
+</script>
+</body>
+</html>

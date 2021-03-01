@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Kendo UI Snippet</title>
+
+    <link rel="stylesheet" href="https://kendo.cdn.telerik.com/2021.1.119/styles/kendo.default-v2.min.css"/>
+
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+    <script src="https://kendo.cdn.telerik.com/2021.1.119/js/kendo.all.min.js"></script>
+    <link rel='stylesheet' href='dialog.min.css?2021.2.12.0'/>
+
+    <link rel="stylesheet" href="kendo.common.min.css"/>
+    <link rel="stylesheet" href="kendo.default.min.css"/>
+
+    <link rel='stylesheet' href='kendo-fix.min.css?2021.2.12.0'/>
+
+</head>
+<body>
+
+<fieldset id="form_bind" class="k-group fieldset--first fieldset--last fieldset--nolegend">
+    <div class="form-group form-group--control">
+        <label for="SD" style="min-width: 7em;">Действует с</label>
+        <input type="text" id="SD" class="k-datetimepicker--compact" style="min-width: 14em;" required="required"
+               data-role="datetimepicker"
+               data-bind="value: Item.SD"
+               data-culture="ru-RU">
+
+        <label for="ED">до</label>
+        <input type="text" id="ED" class="k-datetimepicker--compact" style="min-width: 14em;" required="required"
+               data-role="datetimepicker"
+               data-bind="value: Item.ED"
+               data-culture="ru-RU">
+    </div>
+    <div class="form-group form-group--control">
+        <label for="IDORG" style="min-width: 7em;" id="IDORG_label">Организация</label>
+        <span title class="k-widget k-dropdown" role="listbox">
+            <select id="IDORG" class="form-group__item--fullwidth k-valid" data-role="dropdownlist"
+                    data-text-field="Name" data-value-field="ID"
+                    data-bind="value:Item.IDORG, source:Item.OrgList"></select>
+        </span>
+    </div>
+    <div class="form-group form-group--control form-group--top">
+        <div>
+            <label for="Text" class="form-group--control k-input--height" style="min-width: 7em;">
+                <span>Текст сообщения</span>
+            </label>
+        </div>
+        <div class="form-group__item--fullwidth">
+            <textarea id="Text" style="width: 100%; height: 169px;" class="k-textbox" required="required"
+                      data-bind="value:Item.Text"></textarea>
+        </div>
+    </div>
+    <div class="form-group--control">
+        <div style="width: 7em;"></div>
+        <div class="form-group--control form-group--control-space">
+            <div>
+                <input type="checkbox" id="IsImportant" class="k-checkbox" data-bind="checked:Item.IsImportant"/><!--
+					--><label class="k-checkbox-label">Важное?</label>
+            </div>
+            <div>
+                <input type="checkbox" id="IsModal" class="k-checkbox" data-bind="checked:Item.IsModal"/><!--
+					--><label class="k-checkbox-label">Модальное?</label>
+            </div>
+        </div>
+    </div>
+    <div class="form-group form-group--control">
+        <button onclick="submitClick()">Отправить</button>
+    </div>
+</fieldset>
+
+<script>
+
+    var Item = {
+        SD: new Date(),
+        ED: new Date(),
+        IDORG: undefined,
+        OrgList: [{ID: 1, Name: 'org1'}, {ID: 2, Name: 'org2'}, {ID: 5, Name: 'org5'}],
+        IsImportant: false,
+        IsModal: false,
+        Text: ""
+    };
+
+    Item.ED.setHours(23);
+    Item.ED.setMinutes(59);
+    Item.ED.setSeconds(59);
+
+    if (!!!Item.IDORG
+        && !!Item.OrgList
+        && (Item.OrgList.length>0 && !!Item.OrgList.filter(item => item.ID == Item.IDORG)))
+    {
+        Item.IDORG = Item.OrgList[0].ID;
+    }
+    else
+    {
+        Item.IDORG = -1;
+    }
+
+    var viewModel = kendo.observable({
+        Item
+    });
+    kendo.bind($("#form_bind"), viewModel);
+
+    function submitClick() {
+        console.log(viewModel.Item.toJSON());
+    }
+</script>
+
+</body>
+</html>

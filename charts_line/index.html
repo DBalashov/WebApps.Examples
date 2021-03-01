@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>График пробега автомобиля по датам</title>
+
+    <link rel="stylesheet" href="https://kendo.cdn.telerik.com/2021.1.119/styles/kendo.default-v2.min.css"
+    />
+
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+    <script src="https://kendo.cdn.telerik.com/2021.1.119/js/kendo.all.min.js"></script>
+    <script src="external-settings.js"></script>
+    <script src="js/web.js"></script>
+    <script src="js/apiassistant.js"></script>
+
+</head>
+<body>
+<div id="chart"></div>
+<script>
+    //в external-settings хранятся настройки текущей сессии, в том числе адрес API и токен текущей сессии
+    var parm = window['external-settings'];
+
+    function getTotalStatsByCar(car, sd, ed) {
+        return new Promise((resolve, reject) => {
+            //по всем устройства собираем итоговую информацию по рейсам
+            get(parm.Urls.Service + '/GetTripsTotal', {
+                session: parm.Token,
+                schemaID: parm.Organization.UID,
+                IDs: car.ID,
+                sd: kendo.toString(sd, 'yyyyMMdd-HHmmss'),
+                ed: kendo.toString(ed, 'yyyyMMdd-HHmmss'),
+                tripSplitterIndex: 0 //деление по суткам
+            }, function (carTrips) {
+                let trips = carTrips[car.ID];
+                let result = [];
+                //сохраняем в итог дату и пробег для каждого отрезка
+                Object.entries(trips.Trips).forEach(function (trip) {
+                    let date = new Date(trip[1].SD);
+                    result.push({
+                        date: date.getDate() + '.' + (date.getMonth() + 1) + '.' + date.getFullYear(),
+                        distance: round(trip[1].Total.TotalDistance)
+                    });
+                });
+                resolve(result);
+            });
+        });
+    }
+
+    window.parent.AppDispatcher.add('CarChartListener', {
+        onSelectCar: function (car) {
+            console.info('onSelectCar', {car: car});
+            var sd = startOfMonth(new Date());
+            var ed = endOfMonth(new Date());
+            getTotalStatsByCar(car, sd, ed)
+                .then(function (stats) {
+                    //в качестве источника данных используем массив объектов { name: текстовое имя, data: массив значений }
+                    $("#chart").kendoChart({
+                        title: {
+                            align: "left",
+                            text: 'Пробег автомобиля за ' + (sd.getMonth() + 1) + '.' + sd.getFullYear()
+                        },
+                        series: [{
+                            type: 'line',
+                            name: car.Name,
+                            data: stats.map(item => {
+                                return item.distance
+                            })
+                        }],
+                        categoryAxis: {
+                            categories: stats.map(item => {
+                                return item.date
+                            })
+                        },
+                        tooltip: {
+                            visible: true,
+                            template: '#:category# #=value# км'
+                        }
+                    })
+                    ;
+                });
+        }
+    })
+    ;
+</script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Kendo UI Snippet</title>
+
+    <link rel="stylesheet" href="https://kendo.cdn.telerik.com/2021.1.119/styles/kendo.default-v2.min.css"/>
+
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+    <script src="https://kendo.cdn.telerik.com/2021.1.119/js/kendo.all.min.js"></script>
+    <style>
+
+        .tableHeader {
+            font-size: 120%; /* Размер шрифта в процентах */
+            font-family: serif; /* Шрифт с засечками */
+            position: relative; /* Относительное позиционирование */
+            top: 5px; /* Сдвиг сверху */
+            padding-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+
+<script type="text/javascript">
+    var tablesDiv = document.createElement('div');
+    tablesDiv.setAttribute("id", `tablesDiv`);
+    var divCounter = 0;
+
+    var columns = [
+        {field: "fuelType", title: "Тип топлива"},
+        {field: "price", title: "Стоимость"}
+    ];
+    var dataSource = [
+        {
+            fuelType: "АИ-92",
+            price: 41.30
+        },
+        {
+            fuelType: "АИ-95",
+            price: 44.32
+        }
+    ];
+    var counter = 2;
+    var tableHeaderDivName = `view${counter}`;
+
+    var headerDiv = document.createElement('div');
+    headerDiv.setAttribute("id", tableHeaderDivName);
+    headerDiv.setAttribute("class", "tableHeader");
+    var headerName = document.createElement('span');
+    headerName.setAttribute("data-format", "standart");
+    headerName.setAttribute("data-bind", "text: headerName")
+    var headerCoords = document.createElement('span');
+    headerCoords.setAttribute("data-format", "standart");
+    headerCoords.setAttribute("data-bind", "text: headerCoords")
+    headerDiv.appendChild(headerName);
+    headerDiv.appendChild(document.createElement("br"));
+    headerDiv.appendChild(headerCoords);
+    var viewModel = kendo.observable({
+        headerName: "Наименование: ЛУКОЙЛ",
+        headerCoords: "Координаты: lat  lng "
+    });
+    document.body.appendChild(headerDiv);
+    kendo.bind($(`#${tableHeaderDivName}`), viewModel);
+    createTable(dataSource);
+
+    function createTable(dataSource) {
+
+        var newDiv = document.createElement('div');
+        newDiv.setAttribute("id", `tab${divCounter}`);
+        newDiv.appendChild(document.createElement("br"));
+        tablesDiv.appendChild(newDiv);
+        document.body.appendChild(tablesDiv);
+
+        if (dataSource.length > 0)
+            $(`#tab${divCounter}`).kendoGrid({
+                columns: columns,
+                dataSource: {
+                    data: dataSource
+                }
+            });
+        divCounter++;
+    }
+</script>
+</body>
+</html>
